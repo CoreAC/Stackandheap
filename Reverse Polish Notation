@@ -1,0 +1,213 @@
+逆波兰式算法
+　　　　　  1、从左至右扫描一中缀表达式。
+                2、若读取的是操作数，则判断该操作数的类型，并将该操作数存入操作数堆栈
+                3、若读取的是运算符
+                   (1) 该运算符为左括号"("，则直接存入运算符堆栈。
+                   (2) 该运算符为右括号")"，则输出运算符堆栈中的运算符到操作数堆栈，直到遇到左括号为止，此时抛弃该左括号。
+                   (3) 该运算符为非括号运算符：
+                       (a) 若运算符堆栈栈顶的运算符为左括号，则直接存入运算符堆栈。
+                       (b) 若比运算符堆栈栈顶的运算符优先级高，则直接存入运算符堆栈。
+                       (c) 若比运算符堆栈栈顶的运算符优先级低或相等，则输出栈顶运算符到操作数堆栈，直至运算符栈栈顶运算符低于（不包括等于）该运算符优先级,或为左括号，
+                           并将当前运算符压入运算符堆栈。
+                4、当表达式读取完成后运算符堆栈中尚有运算符时，则依序取出运算符到操作数堆栈，直到运算符堆栈为空。
+ 逆波兰算法的一些实现.
+ (1)
+     using System;  
+    using System.Collections.Generic;  
+    using System.Text;  
+      
+    namespace Calculate  
+    {  
+        class Calculator  
+        {  
+            static Dictionary<char, int> priorities = null;  
+            const string operators = "+-*/%^";  
+      
+            static Calculator()  
+            {  
+                priorities = new Dictionary<char, int>();  
+                priorities.Add('#', -1);  
+                priorities.Add('+', 0);  
+                priorities.Add('-', 0);  
+                priorities.Add('*', 1);  
+                priorities.Add('/', 1);  
+                priorities.Add('%', 1);  
+                priorities.Add('^', 2);  
+            }  
+      
+            static double Compute(double leftNum, double rightNum, char op)  
+            {  
+                switch (op)  
+                {  
+                    case '+': return leftNum + rightNum;  
+                    case '-': return leftNum - rightNum;  
+                    case '*': return leftNum * rightNum;  
+                    case '/': return leftNum / rightNum;  
+                    case '%': return leftNum % rightNum;  
+                    case '^': return Math.Pow(leftNum, rightNum);  
+                    default: return 0;  
+                }  
+            }  
+      
+            static bool IsOperator(char op)  
+            {  
+                return operators.IndexOf(op) >= 0;  
+            }  
+      
+            static bool IsLeftAssoc(char op)  
+            {  
+                return op == '+' || op == '-' || op == '*' || op == '/' || op == '%';  
+            }  
+      
+            static Queue<object> PreOrderToPostOrder(string expression)  
+            {  
+                var result = new Queue<object>();  
+                var operatorStack = new Stack<char>();  
+                operatorStack.Push('#');  
+                char top, cur,tempChar;  
+                string tempNum;  
+                if (expression[0] == '-') expression = '0' + expression;  
+      
+                for (int i = 0,j; i < expression.Length; )  
+                {  
+                    cur = expression[i++];  
+                    top = operatorStack.Peek();  
+      
+                    if (cur == '(')  
+                    {  
+                        operatorStack.Push(cur);  
+                    }  
+                    else  
+                    {  
+                        if (IsOperator(cur))  
+                        {  
+                            while(IsOperator(top) && ((IsLeftAssoc(cur)&& priorities[cur] <= priorities[top])) ||(!IsLeftAssoc(cur)&&priorities[cur]<priorities[top]))  
+                            {  
+                                result.Enqueue(operatorStack.Pop());  
+                                top = operatorStack.Peek();  
+                            }  
+                            operatorStack.Push(cur);  
+                        }  
+                        else if (cur == ')')  
+                        {  
+                            while (operatorStack.Count > 0 && (tempChar = operatorStack.Pop()) != '(')  
+                            {  
+                                result.Enqueue(tempChar);  
+                            }  
+                        }  
+                        else  
+                        {  
+                            tempNum = "" + cur;  
+                            j = i;  
+                            while (j < expression.Length && (expression[j] == '.' || (expression[j] >= '0' && expression[j] <= '9')))  
+                            {  
+                                tempNum += expression[j++];  
+                            }  
+                            i = j;  
+                            result.Enqueue(tempNum);  
+                        }  
+                    }  
+                }  
+                while (operatorStack.Count > 0)  
+                {  
+                    cur = operatorStack.Pop();  
+                    if (cur == '#') continue;  
+                    if (operatorStack.Count > 0)  
+                    {  
+                        top = operatorStack.Peek();  
+                    }  
+                      
+                    result.Enqueue(cur);  
+                }  
+                  
+                return result;  
+            }  
+      
+            static double Calucate(string expression)  
+            {  
+                try  
+                {  
+                    var rpn = PreOrderToPostOrder(expression);  
+                    var operandStack = new Stack<double>();  
+                    double left, right;  
+                    object cur;  
+                    while (rpn.Count > 0)  
+                    {  
+                        cur = rpn.Dequeue();  
+                        if (cur is char)  
+                        {  
+                            right = operandStack.Pop();  
+                            left = operandStack.Pop();  
+                            operandStack.Push(Compute(left, right, (char)cur));  
+                        }  
+                        else  
+                        {  
+                            operandStack.Push(double.Parse(cur.ToString()));  
+                        }  
+                    }  
+                    return operandStack.Pop();  
+                }  
+                catch  
+                {  
+                    throw new Exception("表达式格式不正确！");  
+                }              
+            }  
+      
+            static void Main(string[] args)  
+            {  
+                string expression;  
+                Console.Write("输入表达式（支持+-*/%^），输入exit退出: ");  
+                while ((expression = Console.ReadLine()) != "exit")  
+                {  
+                    try  
+                    {  
+                        Console.WriteLine(expression + " = " + Calucate(expression));  
+                    }  
+                    catch (Exception ex)  
+                    {  
+                        Console.WriteLine(ex.Message);  
+                    }  
+                    Console.Write("输入表达式（支持+-*/%^），输入exit退出: ");  
+                }  
+            }  
+        }  
+    }  
+    
+    
+    (2)
+    定义下操作数类
+    
+     /// 操作数类型
+    /// </summary>
+    public enum OperandType
+    {
+        /// <summary>
+        /// 函数
+        /// </summary>
+        FUNC = 1,
+
+        /// <summary>
+        /// 日期
+        /// </summary>
+        DATE = 2,
+
+        /// <summary>
+        /// 数字
+        /// </summary>
+        NUMBER = 3,
+
+        /// <summary>
+        /// 布尔
+        /// </summary>
+        BOOLEAN = 4,
+
+        /// <summary>
+        /// 字符串
+        /// </summary>
+        STRING = 5
+
+    }
+    
+    
+    
+    
